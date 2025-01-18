@@ -130,7 +130,7 @@ EOF
 
     # 更新 sources.list 文件
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为官方镜像（版本：$VERSION）。${NC}"
+    echo -e "${GREEN}Debian源已成功更新为官方镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为清华镜像的函数
@@ -205,7 +205,7 @@ EOF
 
     # 更新 sources.list 文件
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用清华镜像（版本：$VERSION）。${NC}"
+    echo -e "${GREEN}Debian源已成功更新为使用清华镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为中科大镜像的函数
@@ -280,7 +280,7 @@ EOF
 
     # 更新 sources.list 文件
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用中科大镜像（版本：$VERSION）。${NC}"
+    echo -e "${GREEN}Debian源已成功更新为使用中科大镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为腾讯云镜像的函数
@@ -374,7 +374,7 @@ EOF
 
     # 更新 sources.list 文件
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用腾讯云镜像（版本：$VERSION）。${NC}"
+    echo -e "${GREEN}Debian源已成功更新为使用腾讯云镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为阿里云镜像的函数
@@ -468,7 +468,7 @@ EOF
 
     # 更新 sources.list 文件
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用阿里云镜像（版本：$VERSION）。${NC}"
+    echo -e "${GREEN}Debian源已成功更新为使用阿里云镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 恢复备份的源函数
