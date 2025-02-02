@@ -14,12 +14,8 @@ backup_config() {
 # 恢复备份的源函数
 recovery_cof() {
     if [[ -f "$backup_dir/sysctl.conf.bak" ]]; then
-        cp "$backup_dir/sysctl.conf.bak" /etc/sysctl.d/99-tcp-tuning.conf
-    fi
-    if [[ -f "$backup_dir/limits.conf.bak" ]]; then
-        cp "$backup_dir/limits.conf.bak" /etc/security/limits.d/tcp_tuning.conf
-    fi
-    if [[ -f "$backup_dir/journald.conf.bak" ]]; then
+        cp "$backup_dir/sysctl.conf.bak" /etc/sysctl.conf
+        cp "$backup_dir/limits.conf.bak" /etc/security/limits.conf
         cp "$backup_dir/journald.conf.bak" /etc/systemd/journald.conf
     else
         echo -e "${RED}开始备份${NC}"
