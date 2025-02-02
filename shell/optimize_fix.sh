@@ -11,6 +11,21 @@ backup_config() {
     echo "[信息] 配置文件已备份到 $backup_dir"
 }
 
+# 恢复备份的源函数
+recovery_cof() {
+    if [[ -f "$backup_dir/sysctl.conf.bak" ]]; then
+        cp "$backup_dir/sysctl.conf.bak" /etc/sysctl.d/99-tcp-tuning.conf
+    fi
+    if [[ -f "$backup_dir/limits.conf.bak" ]]; then
+        cp "$backup_dir/limits.conf.bak" /etc/security/limits.d/tcp_tuning.conf
+    fi
+    if [[ -f "$backup_dir/journald.conf.bak" ]]; then
+        cp "$backup_dir/journald.conf.bak" /etc/systemd/journald.conf
+    else
+        echo -e "${RED}开始备份${NC}"
+    fi
+}
+
 # 恢复原始配置
 restore_config() {
     if [[ -f "$backup_dir/sysctl.conf.bak" ]]; then
@@ -144,6 +159,7 @@ read -rp "请输入选项（1/2/0）: " option
 
 case "$option" in
     1)
+        recovery_cof
         backup_config
         optimize_system
         ;;
