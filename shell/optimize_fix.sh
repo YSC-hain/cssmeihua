@@ -140,8 +140,6 @@ EOF
 
     # 应用优化参数
     sysctl --system
-    ulimit -n $fs_file_max
-    ulimit -u $fs_file_max
 
     echo "[信息] TCP 调优完成！"
     exit 0
