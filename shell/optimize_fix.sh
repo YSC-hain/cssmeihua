@@ -1,52 +1,54 @@
 #!/usr/bin/env bash
 
-# 获取系统架构和内存信息
-arch=$(getconf LONG_BIT)  # 系统位数
-memory_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}') # 总内存 (KB)
-memory_mb=$((memory_kb / 1024))  # 转换为 MB
-memory_gb=$((memory_mb / 1024))  # 转换为 GB
+backup_dir="/etc/backup_tcp_tuning"
 
-# 动态计算优化参数
-fs_file_max=$((memory_mb * 512))  # 文件描述符最大值
-conntrack_max=$((memory_mb * 32))  # Conntrack 最大连接数
-buckets=$((conntrack_max / 4))  # Conntrack 哈希桶大小
-rmem_max=$((memory_mb * 1024 * 8))  # 网络接收缓冲区
-wmem_max=$((memory_mb * 1024 * 8))  # 网络发送缓冲区
-netdev_max_backlog=$((memory_mb * 256))  # 网络接口队列长度
-somaxconn=$((memory_mb * 32))  # TCP 侦听队列长度
-tcp_max_tw_buckets=$((memory_mb * 8))  # TIME-WAIT 连接数
+# 备份配置文件
+backup_config() {
+    mkdir -p "$backup_dir"
+    cp /etc/sysctl.conf "$backup_dir/sysctl.conf.bak"
+    cp /etc/security/limits.conf "$backup_dir/limits.conf.bak"
+    cp /etc/systemd/journald.conf "$backup_dir/journald.conf.bak"
+    echo "[信息] 配置文件已备份到 $backup_dir"
+}
 
-# 检测系统发行版
-if [[ -f /etc/redhat-release ]]; then
-    release="centos"
-elif grep -qi "debian\|raspbian" /etc/issue; then
-    release="debian"
-elif grep -qi "ubuntu" /etc/issue; then
-    release="ubuntu"
-elif grep -qi "centos\|red hat\|redhat" /etc/issue; then
-    release="centos"
-elif grep -qi "debian\|raspbian" /proc/version; then
-    release="debian"
-elif grep -qi "ubuntu" /proc/version; then
-    release="ubuntu"
-elif grep -qi "centos\|red hat\|redhat" /proc/version; then
-    release="centos"
-else
-    echo "[错误] 不支持的操作系统！"
-    exit 1
-fi
+# 恢复原始配置
+restore_config() {
+    if [[ -f "$backup_dir/sysctl.conf.bak" ]]; then
+        cp "$backup_dir/sysctl.conf.bak" /etc/sysctl.conf
+        cp "$backup_dir/limits.conf.bak" /etc/security/limits.conf
+        cp "$backup_dir/journald.conf.bak" /etc/systemd/journald.conf
+        sysctl --system
+        echo "[信息] 原始配置已恢复"
+    else
+        echo "[错误] 备份文件不存在，无法恢复"
+    fi
+    exit 0
+}
 
-# 更新系统
-if [[ ${release} == "centos" ]]; then
-    yum install -y epel-release
-    yum update -y
-else
-    apt update -y
-    apt autoremove --purge -y
-fi
+# 退出脚本
+exit_script() {
+    echo "[信息] 脚本已退出"
+    exit 0
+}
 
 # 配置优化参数
-cat > /etc/sysctl.conf << EOF
+optimize_system() {
+    # 获取系统架构和内存信息
+    memory_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}')
+    memory_mb=$((memory_kb / 1024))
+
+    # 计算优化参数
+    fs_file_max=$((memory_mb * 512))
+    conntrack_max=$((memory_mb * 32))
+    buckets=$((conntrack_max / 4))
+    rmem_max=$((memory_mb * 1024 * 8))
+    wmem_max=$((memory_mb * 1024 * 8))
+    netdev_max_backlog=$((memory_mb * 256))
+    somaxconn=$((memory_mb * 32))
+    tcp_max_tw_buckets=$((memory_mb * 8))
+
+    # 配置 sysctl
+    cat > /etc/sysctl.conf << EOF
 fs.file-max = $fs_file_max
 
 # 增强网络缓冲区
@@ -105,8 +107,8 @@ vm.dirty_ratio = 20
 vm.dirty_background_ratio = 5
 EOF
 
-# 配置文件句柄和进程限制
-cat > /etc/security/limits.conf << EOF
+    # 配置文件句柄和进程限制
+    cat > /etc/security/limits.conf << EOF
 * soft nofile $fs_file_max
 * hard nofile $fs_file_max
 * soft nproc $fs_file_max
@@ -117,18 +119,42 @@ root soft nproc $fs_file_max
 root hard nproc $fs_file_max
 EOF
 
-# 配置 systemd 日志限制
-cat > /etc/systemd/journald.conf << EOF
+    # 配置 systemd 日志限制
+    cat > /etc/systemd/journald.conf << EOF
 [Journal]
 SystemMaxUse=384M
 SystemMaxFileSize=128M
 ForwardToSyslog=no
 EOF
 
-# 应用优化参数
-sysctl --system
-ulimit -n $fs_file_max
-ulimit -u $fs_file_max
+    # 应用优化参数
+    sysctl --system
+    ulimit -n $fs_file_max
+    ulimit -u $fs_file_max
 
-echo "[信息] 优化完毕！"
-exit 0
+    echo "[信息] TCP 调优完成！"
+    exit 0
+}
+
+echo "请选择操作："
+echo "1. TCP 调优"
+echo "2. 恢复原始配置"
+echo "0. 退出脚本"
+read -rp "请输入选项（1/2/0）: " option
+
+case "$option" in
+    1)
+        backup_config
+        optimize_system
+        ;;
+    2)
+        restore_config
+        ;;
+    0)
+        exit_script
+        ;;
+    *)
+        echo "[错误] 请输入有效的选项！"
+        exit 1
+        ;;
+esac
