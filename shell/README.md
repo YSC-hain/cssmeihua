@@ -10,5 +10,5 @@ bash <(wget -qO- https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shel
 
 TCP调优 (参数比较暴力）
 ```
-bash <(wget -qO- https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/optimize_fix)
+bash <(wget -qO- https://raw.githubusercontent.com/mocchen/cssmeihua/mochen/shell/optimize_fix.sh)
 ```
