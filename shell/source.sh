@@ -64,73 +64,56 @@ update_sources() {
     recovery_sources
     backup_sources
 
-    # 检查镜像源是否可用
-    if ! curl -s --head https://deb.debian.org/debian/ | head -n 1 | grep "200" > /dev/null; then
-        echo -e "${RED}官方Debian镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
+    # 检查官方 Debian 镜像源是否可用
+    if ! curl -fsI https://deb.debian.org/debian/ | head -n 1 | grep -q "200"; then
+        echo -e "${RED}官方 Debian 镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
 
-    # 检查系统版本
-    VERSION=$(grep -oE 'VERSION="[0-9]+' /etc/os-release | cut -d '"' -f2)
+    # 获取系统版本
+    VERSION=$(source /etc/os-release && echo "$VERSION_ID")
     if [[ -z "$VERSION" ]]; then
-        echo -e "${RED}无法检测系统版本。请确认操作系统是否为Debian并重试。${NC}"
+        echo -e "${RED}无法检测系统版本。请确认操作系统是否为 Debian 并重试。${NC}"
         exit 1
     fi
 
-    # 定义对应版本的源
-    if [[ "$VERSION" == "10" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb http://deb.debian.org/debian/ buster main contrib non-free
-deb-src http://deb.debian.org/debian/ buster main contrib non-free
+    # 设定 Debian 发行代号
+    case "$VERSION" in
+        10) DIST="buster" ;;
+        11) DIST="bullseye" ;;
+        12) DIST="bookworm" ;;
+        *)
+            echo -e "${RED}不支持的 Debian 版本：$VERSION。请手动配置源。${NC}"
+            exit 1
+            ;;
+    esac
 
-deb http://deb.debian.org/debian/ buster-updates main contrib non-free
-deb-src http://deb.debian.org/debian/ buster-updates main contrib non-free
-
-deb http://deb.debian.org/debian/ buster-backports main contrib non-free
-deb-src http://deb.debian.org/debian/ buster-backports main contrib non-free
-
-deb http://deb.debian.org/debian-security/ buster/updates main contrib non-free
-deb-src http://deb.debian.org/debian-security/ buster/updates main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "11" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://deb.debian.org/debian/ bullseye main contrib non-free
-deb-src https://deb.debian.org/debian/ bullseye main contrib non-free
-
-deb https://deb.debian.org/debian/ bullseye-updates main contrib non-free
-deb-src https://deb.debian.org/debian/ bullseye-updates main contrib non-free
-
-deb https://deb.debian.org/debian/ bullseye-backports main contrib non-free
-deb-src https://deb.debian.org/debian/ bullseye-backports main contrib non-free
-
-deb https://deb.debian.org/debian-security/ bullseye-security main contrib non-free
-deb-src https://deb.debian.org/debian-security/ bullseye-security main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "12" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
-deb-src https://deb.debian.org/debian/ bookworm main contrib non-free non-free-firmware
-
-deb https://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb-src https://deb.debian.org/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb https://deb.debian.org/debian/ bookworm-backports main contrib non-free non-free-firmware
-deb-src https://deb.debian.org/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-deb https://deb.debian.org/debian-security/ bookworm-security main contrib non-free non-free-firmware
-deb-src https://deb.debian.org/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
-        )
+    # 仅 Debian 12 添加 non-free-firmware
+    if [[ "$VERSION" == "12" ]]; then
+        EXTRA_COMPONENTS="non-free non-free-firmware"
     else
-        echo -e "${RED}不支持的Debian版本：$VERSION。请手动配置源。${NC}"
-        exit 1
+        EXTRA_COMPONENTS="non-free"
     fi
 
-    # 更新 sources.list 文件
+    # 生成 sources.list
+    SOURCES_LIST=$(cat << EOF
+deb https://deb.debian.org/debian/ $DIST main contrib $EXTRA_COMPONENTS
+deb-src https://deb.debian.org/debian/ $DIST main contrib $EXTRA_COMPONENTS
+
+deb https://deb.debian.org/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+deb-src https://deb.debian.org/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+
+deb https://deb.debian.org/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+deb-src https://deb.debian.org/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+
+deb https://deb.debian.org/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+deb-src https://deb.debian.org/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+EOF
+    )
+
+    # 更新 sources.list
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为官方镜像（版本：Debian $VERSION）。${NC}"
+    echo -e "${GREEN}Debian 源已成功更新为官方镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为清华镜像的函数
@@ -140,72 +123,55 @@ update_tsinghua_mirrors_sources() {
     backup_sources
 
     # 检查清华镜像源是否可用
-    if ! curl -s --head https://mirrors.tuna.tsinghua.edu.cn/debian/ | head -n 1 | grep "200" > /dev/null; then
+    if ! curl -fsI https://mirrors.tuna.tsinghua.edu.cn/debian/ | head -n 1 | grep -q "200"; then
         echo -e "${RED}清华镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
 
-    # 检查系统版本
-    VERSION=$(grep -oE 'VERSION="[0-9]+' /etc/os-release | cut -d '"' -f2)
+    # 获取系统版本
+    VERSION=$(source /etc/os-release && echo "$VERSION_ID")
     if [[ -z "$VERSION" ]]; then
-        echo -e "${RED}无法检测系统版本。请确认操作系统是否为Debian并重试。${NC}"
+        echo -e "${RED}无法检测系统版本。请确认操作系统是否为 Debian 并重试。${NC}"
         exit 1
     fi
 
-    # 定义对应版本的源
-    if [[ "$VERSION" == "10" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ buster main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ buster main contrib non-free
+    # 设定 Debian 发行代号
+    case "$VERSION" in
+        10) DIST="buster" ;;
+        11) DIST="bullseye" ;;
+        12) DIST="bookworm" ;;
+        *)
+            echo -e "${RED}不支持的 Debian 版本：$VERSION。请手动配置源。${NC}"
+            exit 1
+            ;;
+    esac
 
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ buster-updates main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ buster-updates main contrib non-free
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ buster-backports main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ buster-backports main contrib non-free
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ buster/updates main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian-security/ buster/updates main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "11" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye main contrib non-free
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-updates main contrib non-free
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ bullseye-backports main contrib non-free
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bullseye-security main contrib non-free
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bullseye-security main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "12" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware
-deb-src https://mirrors.tuna.tsinghua.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
-        )
+    # 仅 Debian 12 添加 non-free-firmware
+    if [[ "$VERSION" == "12" ]]; then
+        EXTRA_COMPONENTS="non-free non-free-firmware"
     else
-        echo -e "${RED}不支持的Debian版本：$VERSION。请手动配置源。${NC}"
-        exit 1
+        EXTRA_COMPONENTS="non-free"
     fi
 
-    # 更新 sources.list 文件
+    # 生成 sources.list
+    SOURCES_LIST=$(cat << EOF
+deb https://mirrors.tuna.tsinghua.edu.cn/debian/ $DIST main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ $DIST main contrib $EXTRA_COMPONENTS
+
+deb https://mirrors.tuna.tsinghua.edu.cn/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+
+deb https://mirrors.tuna.tsinghua.edu.cn/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.tuna.tsinghua.edu.cn/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+
+deb https://mirrors.tuna.tsinghua.edu.cn/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.tuna.tsinghua.edu.cn/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+EOF
+    )
+
+    # 更新 sources.list
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用清华镜像（版本：Debian $VERSION）。${NC}"
+    echo -e "${GREEN}Debian 源已成功更新为清华镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为中科大镜像的函数
@@ -215,72 +181,55 @@ update_ustc_mirrors_sources() {
     backup_sources
 
     # 检查中科大镜像源是否可用
-    if ! curl -s --head https://mirrors.ustc.edu.cn/debian/ | head -n 1 | grep "200" > /dev/null; then
+    if ! curl -fsI https://mirrors.ustc.edu.cn/debian/ | head -n 1 | grep -q "200"; then
         echo -e "${RED}中科大镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
 
-    # 检查系统版本
-    VERSION=$(grep -oE 'VERSION="[0-9]+' /etc/os-release | cut -d '"' -f2)
+    # 获取系统版本
+    VERSION=$(source /etc/os-release && echo "$VERSION_ID")
     if [[ -z "$VERSION" ]]; then
-        echo -e "${RED}无法检测系统版本。请确认操作系统是否为Debian并重试。${NC}"
+        echo -e "${RED}无法检测系统版本。请确认操作系统是否为 Debian 并重试。${NC}"
         exit 1
     fi
 
-    # 根据版本设置源
-    if [[ "$VERSION" == "10" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.ustc.edu.cn/debian/ buster main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian/ buster main contrib non-free
+    # 设定 Debian 发行代号
+    case "$VERSION" in
+        10) DIST="buster" ;;
+        11) DIST="bullseye" ;;
+        12) DIST="bookworm" ;;
+        *)
+            echo -e "${RED}不支持的 Debian 版本：$VERSION。请手动配置源。${NC}"
+            exit 1
+            ;;
+    esac
 
-deb https://mirrors.ustc.edu.cn/debian/ buster-updates main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian/ buster-updates main contrib non-free
-
-deb https://mirrors.ustc.edu.cn/debian/ buster-backports main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian/ buster-backports main contrib non-free
-
-deb https://mirrors.ustc.edu.cn/debian-security/ buster/updates main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian-security/ buster/updates main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "11" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian/ bullseye main contrib non-free
-
-deb https://mirrors.ustc.edu.cn/debian/ bullseye-updates main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian/ bullseye-updates main contrib non-free
-
-deb https://mirrors.ustc.edu.cn/debian/ bullseye-backports main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian/ bullseye-backports main contrib non-free
-
-deb https://mirrors.ustc.edu.cn/debian-security/ bullseye-security main contrib non-free
-deb-src https://mirrors.ustc.edu.cn/debian-security/ bullseye-security main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "12" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.ustc.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
-deb-src https://mirrors.ustc.edu.cn/debian/ bookworm main contrib non-free non-free-firmware
-
-deb https://mirrors.ustc.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb-src https://mirrors.ustc.edu.cn/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb https://mirrors.ustc.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
-deb-src https://mirrors.ustc.edu.cn/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-deb https://mirrors.ustc.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware
-deb-src https://mirrors.ustc.edu.cn/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
-        )
+    # 仅 Debian 12 添加 non-free-firmware
+    if [[ "$VERSION" == "12" ]]; then
+        EXTRA_COMPONENTS="non-free non-free-firmware"
     else
-        echo -e "${RED}不支持的Debian版本：$VERSION。请手动配置源。${NC}"
-        exit 1
+        EXTRA_COMPONENTS="non-free"
     fi
 
-    # 更新 sources.list 文件
+    # 生成 sources.list
+    SOURCES_LIST=$(cat << EOF
+deb https://mirrors.ustc.edu.cn/debian/ $DIST main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.ustc.edu.cn/debian/ $DIST main contrib $EXTRA_COMPONENTS
+
+deb https://mirrors.ustc.edu.cn/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.ustc.edu.cn/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+
+deb https://mirrors.ustc.edu.cn/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.ustc.edu.cn/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+
+deb https://mirrors.ustc.edu.cn/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+deb-src https://mirrors.ustc.edu.cn/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+EOF
+    )
+
+    # 更新 sources.list
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用中科大镜像（版本：Debian $VERSION）。${NC}"
+    echo -e "${GREEN}Debian 源已成功更新为中科大镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为腾讯云镜像的函数
@@ -290,91 +239,65 @@ update_tencent_mirrors_sources() {
     backup_sources
 
     # 检查腾讯云镜像源是否可用
-    if ! curl -s --head https://mirrors.cloud.tencent.com/debian/ | head -n 1 | grep "200" > /dev/null; then
+    if ! curl -fsI https://mirrors.cloud.tencent.com/debian/ | head -n 1 | grep -q "200"; then
         echo -e "${RED}腾讯云镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
 
-    # 检查系统版本
-    VERSION=$(grep -oE 'VERSION="[0-9]+' /etc/os-release | cut -d '"' -f2)
+    # 获取系统版本
+    VERSION=$(source /etc/os-release && echo "$VERSION_ID")
     if [[ -z "$VERSION" ]]; then
-        echo -e "${RED}无法检测系统版本。请确认操作系统是否为Debian并重试。${NC}"
+        echo -e "${RED}无法检测系统版本。请确认操作系统是否为 Debian 并重试。${NC}"
         exit 1
     fi
 
-    # 根据版本设置源
-    if [[ "$VERSION" == "10" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb http://mirrors.tencentyun.com/debian/ buster main contrib non-free
-deb-src http://mirrors.tencentyun.com/debian/ buster main contrib non-free
+    # 设定默认源前缀
+    MIRROR_PREFIX="https://mirrors.cloud.tencent.com"
 
-deb http://mirrors.tencentyun.com/debian/ buster-updates main contrib non-free
-deb-src http://mirrors.tencentyun.com/debian/ buster-updates main contrib non-free
-
-deb http://mirrors.tencentyun.com/debian/ buster-backports main contrib non-free
-deb-src http://mirrors.tencentyun.com/debian/ buster-backports main contrib non-free
-
-deb http://mirrors.tencentyun.com/debian-security/ buster/updates main contrib non-free
-deb-src http://mirrors.tencentyun.com/debian-security/ buster/updates main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "11" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.cloud.tencent.com/debian/ bullseye main contrib non-free
-deb-src https://mirrors.cloud.tencent.com/debian/ bullseye main contrib non-free
-
-deb https://mirrors.cloud.tencent.com/debian/ bullseye-updates main contrib non-free
-deb-src https://mirrors.cloud.tencent.com/debian/ bullseye-updates main contrib non-free
-
-deb https://mirrors.cloud.tencent.com/debian/ bullseye-backports main contrib non-free
-deb-src https://mirrors.cloud.tencent.com/debian/ bullseye-backports main contrib non-free
-
-deb https://mirrors.cloud.tencent.com/debian-security/ bullseye-security main contrib non-free
-deb-src https://mirrors.cloud.tencent.com/debian-security/ bullseye-security main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "12" ]]; then
-        echo -e "${YELLOW}检测到系统为 Debian 12，是否运行在腾讯云机器上？(y/n): ${NC}"
+    # Debian 10、11、12 需要区分腾讯云机器
+    if [[ "$VERSION" == "10" || "$VERSION" == "11" || "$VERSION" == "12" ]]; then
+        echo -e "${YELLOW}检测到 Debian $VERSION，是否运行在腾讯云机器上？(y/n): ${NC}"
         read -r IS_TENCENT_MACHINE
-        if [[ "$IS_TENCENT_MACHINE" == "y" ]]; then
-            SOURCES_LIST=$(cat << EOF
-deb http://mirrors.tencentyun.com/debian/ bookworm main contrib non-free non-free-firmware
-deb-src http://mirrors.tencentyun.com/debian/ bookworm main contrib non-free non-free-firmware
-
-deb http://mirrors.tencentyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb-src http://mirrors.tencentyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb http://mirrors.tencentyun.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-deb-src http://mirrors.tencentyun.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-deb http://mirrors.tencentyun.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-deb-src http://mirrors.tencentyun.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
-            )
-        else
-            SOURCES_LIST=$(cat << EOF
-deb https://mirrors.cloud.tencent.com/debian/ bookworm main contrib non-free non-free-firmware
-deb-src https://mirrors.cloud.tencent.com/debian/ bookworm main contrib non-free non-free-firmware
-
-deb https://mirrors.cloud.tencent.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb-src https://mirrors.cloud.tencent.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb https://mirrors.cloud.tencent.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-deb-src https://mirrors.cloud.tencent.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-deb https://mirrors.cloud.tencent.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-deb-src https://mirrors.cloud.tencent.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
-            )
-        fi
-    else
-        echo -e "${RED}不支持的Debian版本：$VERSION。请手动配置源。${NC}"
-        exit 1
+        [[ "$IS_TENCENT_MACHINE" == "y" ]] && MIRROR_PREFIX="http://mirrors.tencentyun.com"
     fi
 
-    # 更新 sources.list 文件
+    # 生成 sources.list
+    case "$VERSION" in
+        10) DIST="buster" ;;
+        11) DIST="bullseye" ;;
+        12) DIST="bookworm" ;;
+        *) 
+            echo -e "${RED}不支持的 Debian 版本：$VERSION。请手动配置源。${NC}"
+            exit 1
+            ;;
+    esac
+
+    # 仅 Debian 12 添加 non-free-firmware
+    if [[ "$VERSION" == "12" ]]; then
+        EXTRA_COMPONENTS="non-free non-free-firmware"
+    else
+        EXTRA_COMPONENTS="non-free"
+    fi
+
+    # 设置 sources.list
+    SOURCES_LIST=$(cat << EOF
+deb $MIRROR_PREFIX/debian/ $DIST main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian/ $DIST main contrib $EXTRA_COMPONENTS
+
+deb $MIRROR_PREFIX/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+
+deb $MIRROR_PREFIX/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+
+deb $MIRROR_PREFIX/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+EOF
+    )
+
+    # 更新 sources.list
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用腾讯云镜像（版本：Debian $VERSION）。${NC}"
+    echo -e "${GREEN}Debian 源已成功更新为腾讯云镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 更新为阿里云镜像的函数
@@ -384,91 +307,65 @@ update_aliyun_mirrors_sources() {
     backup_sources
 
     # 检查阿里云镜像源是否可用
-    if ! curl -s --head https://mirrors.aliyun.com/debian/ | head -n 1 | grep "200" > /dev/null; then
+    if ! curl -fsI https://mirrors.aliyun.com/debian/ | head -n 1 | grep -q "200"; then
         echo -e "${RED}阿里云镜像源不可用。请稍后再试或选择其他镜像源。${NC}"
         exit 1
     fi
 
-    # 检查系统版本
-    VERSION=$(grep -oE 'VERSION="[0-9]+' /etc/os-release | cut -d '"' -f2)
+    # 获取系统版本
+    VERSION=$(source /etc/os-release && echo "$VERSION_ID")
     if [[ -z "$VERSION" ]]; then
-        echo -e "${RED}无法检测系统版本。请确认操作系统是否为Debian并重试。${NC}"
+        echo -e "${RED}无法检测系统版本。请确认操作系统是否为 Debian 并重试。${NC}"
         exit 1
     fi
 
-    # 根据版本设置源
-    if [[ "$VERSION" == "10" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb http://mirrors.aliyun.com/debian/ buster main contrib non-free
-deb-src http://mirrors.aliyun.com/debian/ buster main contrib non-free
+    # 设定默认源前缀
+    MIRROR_PREFIX="https://mirrors.aliyun.com"
 
-deb http://mirrors.aliyun.com/debian/ buster-updates main contrib non-free
-deb-src http://mirrors.aliyun.com/debian/ buster-updates main contrib non-free
+    # Debian 10、11、12 需要区分是否在阿里云机器
+    if [[ "$VERSION" == "10" || "$VERSION" == "11" || "$VERSION" == "12" ]]; then
+        echo -e "${YELLOW}检测到 Debian $VERSION，是否运行在阿里云机器上？(y/n): ${NC}"
+        read -r IS_ALIYUN_MACHINE
+        [[ "$IS_ALIYUN_MACHINE" == "y" ]] && MIRROR_PREFIX="http://mirrors.aliyun.com"
+    fi
 
-deb http://mirrors.aliyun.com/debian/ buster-backports main contrib non-free
-deb-src http://mirrors.aliyun.com/debian/ buster-backports main contrib non-free
+    # 生成 sources.list
+    case "$VERSION" in
+        10) DIST="buster" ;;
+        11) DIST="bullseye" ;;
+        12) DIST="bookworm" ;;
+        *) 
+            echo -e "${RED}不支持的 Debian 版本：$VERSION。请手动配置源。${NC}"
+            exit 1
+            ;;
+    esac
 
-deb http://mirrors.aliyun.com/debian-security/ buster/updates main
-deb-src http://mirrors.aliyun.com/debian-security/ buster/updates main
-EOF
-        )
-    elif [[ "$VERSION" == "11" ]]; then
-        SOURCES_LIST=$(cat << EOF
-deb https://mirrors.aliyun.com/debian/ bullseye main contrib non-free
-deb-src https://mirrors.aliyun.com/debian/ bullseye main contrib non-free
-
-deb https://mirrors.aliyun.com/debian/ bullseye-updates main contrib non-free
-deb-src https://mirrors.aliyun.com/debian/ bullseye-updates main contrib non-free
-
-deb https://mirrors.aliyun.com/debian/ bullseye-backports main contrib non-free
-deb-src https://mirrors.aliyun.com/debian/ bullseye-backports main contrib non-free
-
-deb https://mirrors.aliyun.com/debian-security/ bullseye-security main contrib non-free
-deb-src https://mirrors.aliyun.com/debian-security/ bullseye-security main contrib non-free
-EOF
-        )
-    elif [[ "$VERSION" == "12" ]]; then
-        echo -e "${YELLOW}检测到系统为 Debian 12，是否运行在阿里云机器上？(y/n): ${NC}"
-        read -r IS_TENCENT_MACHINE
-        if [[ "$IS_TENCENT_MACHINE" == "y" ]]; then
-            SOURCES_LIST=$(cat << EOF
-deb http://mirrors.cloud.aliyuncs.com/debian/ bookworm main contrib non-free non-free-firmware
-deb-src http://mirrors.cloud.aliyuncs.com/debian/ bookworm main contrib non-free non-free-firmware
-
-deb http://mirrors.cloud.aliyuncs.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb-src http://mirrors.cloud.aliyuncs.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb http://mirrors.cloud.aliyuncs.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-deb-src http://mirrors.cloud.aliyuncs.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-deb http://mirrors.cloud.aliyuncs.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-deb-src http://mirrors.cloud.aliyuncs.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
-            )
-        else
-            SOURCES_LIST=$(cat << EOF
-deb https://mirrors.aliyun.com/debian/ bookworm main contrib non-free non-free-firmware
-deb-src https://mirrors.aliyun.com/debian/ bookworm main contrib non-free non-free-firmware
-
-deb https://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-deb-src https://mirrors.aliyun.com/debian/ bookworm-updates main contrib non-free non-free-firmware
-
-deb https://mirrors.aliyun.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-deb-src https://mirrors.aliyun.com/debian/ bookworm-backports main contrib non-free non-free-firmware
-
-deb https://mirrors.aliyun.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-deb-src https://mirrors.aliyun.com/debian-security/ bookworm-security main contrib non-free non-free-firmware
-EOF
-            )
-        fi
+    # 仅 Debian 12 添加 non-free-firmware
+    if [[ "$VERSION" == "12" ]]; then
+        EXTRA_COMPONENTS="non-free non-free-firmware"
     else
-        echo -e "${RED}不支持的Debian版本：$VERSION。请手动配置源。${NC}"
-        exit 1
+        EXTRA_COMPONENTS="non-free"
     fi
 
-    # 更新 sources.list 文件
+    # 设置 sources.list
+    SOURCES_LIST=$(cat << EOF
+deb $MIRROR_PREFIX/debian/ $DIST main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian/ $DIST main contrib $EXTRA_COMPONENTS
+
+deb $MIRROR_PREFIX/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian/ $DIST-updates main contrib $EXTRA_COMPONENTS
+
+deb $MIRROR_PREFIX/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian/ $DIST-backports main contrib $EXTRA_COMPONENTS
+
+deb $MIRROR_PREFIX/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+deb-src $MIRROR_PREFIX/debian-security/ $DIST-security main contrib $EXTRA_COMPONENTS
+EOF
+    )
+
+    # 更新 sources.list
     echo "$SOURCES_LIST" > /etc/apt/sources.list
-    echo -e "${GREEN}Debian源已成功更新为使用阿里云镜像（版本：Debian $VERSION）。${NC}"
+    echo -e "${GREEN}Debian 源已成功更新为阿里云镜像（版本：Debian $VERSION）。${NC}"
 }
 
 # 恢复备份的源函数
