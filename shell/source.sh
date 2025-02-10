@@ -258,7 +258,7 @@ update_tencent_mirrors_sources() {
     if [[ "$VERSION" == "10" || "$VERSION" == "11" || "$VERSION" == "12" ]]; then
         echo -e "${YELLOW}检测到 Debian $VERSION，是否运行在腾讯云机器上？(y/n): ${NC}"
         read -r IS_TENCENT_MACHINE
-        [[ "$IS_TENCENT_MACHINE" == "y" ]] && MIRROR_PREFIX="http://mirrors.tencentyun.com"
+        [[ "$IS_TENCENT_MACHINE" == "y" ]] && MIRROR_PREFIX="http://mirrors.cloud.tencent.com"
     fi
 
     # 生成 sources.list
