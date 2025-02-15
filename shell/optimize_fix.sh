@@ -157,6 +157,8 @@ EOF
 
     # 应用优化参数
     modprobe nf_conntrack
+
+    echo "nf_conntrack" >> /etc/modules-load.d/nf_conntrack.conf
     
     sysctl --system
 
