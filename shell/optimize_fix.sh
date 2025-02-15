@@ -36,12 +36,6 @@ restore_config() {
     exit 0
 }
 
-# 退出脚本
-exit_script() {
-    echo "[信息] 脚本已退出"
-    exit 0
-}
-
 # 配置优化参数
 optimize_system() {
     # 获取系统架构和内存信息
