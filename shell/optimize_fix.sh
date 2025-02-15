@@ -156,9 +156,18 @@ ForwardToSyslog=no
 EOF
 
     # 应用优化参数
-    modprobe nf_conntrack
+    echo "[信息] 正在应用 TCP 优化参数..."
 
-    echo "nf_conntrack" >> /etc/modules-load.d/nf_conntrack.conf
+    # 加载 nf_conntrack 模块
+    if ! lsmod | grep -q nf_conntrack; then
+        modprobe nf_conntrack && echo "nf_conntrack 模块已加载"
+    fi
+
+    # 确保模块在启动时加载
+    if ! grep -q "nf_conntrack" /etc/modules-load.d/nf_conntrack.conf; then
+        echo "nf_conntrack" >> /etc/modules-load.d/nf_conntrack.conf
+        echo "nf_conntrack 已添加到开机加载"
+    fi
     
     sysctl --system
 
