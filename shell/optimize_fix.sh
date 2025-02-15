@@ -92,7 +92,6 @@ net.ipv4.tcp_fin_timeout = 10
 net.ipv4.tcp_max_syn_backlog = 65535
 net.ipv4.tcp_max_tw_buckets = $tcp_max_tw_buckets
 net.ipv4.tcp_tw_reuse = 1
-net.ipv4.tcp_tw_recycle = 0
 net.ipv4.tcp_slow_start_after_idle = 0
 net.ipv4.tcp_mtu_probing = 2
 net.ipv4.tcp_fastopen = 3
