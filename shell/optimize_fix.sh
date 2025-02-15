@@ -156,6 +156,8 @@ ForwardToSyslog=no
 EOF
 
     # 应用优化参数
+    modprobe nf_conntrack
+    
     sysctl --system
 
     echo "[信息] TCP 调优完成！"
