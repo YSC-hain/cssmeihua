@@ -48,29 +48,29 @@ optimize_system() {
     memory_kb=$(grep MemTotal /proc/meminfo | awk '{print $2}')
     memory_mb=$((memory_kb / 1024))
 
-# 计算优化参数
+    # 计算优化参数
     fs_file_max=$((memory_mb * 256))
     fs_file_max=$((fs_file_max > 4194304 ? 4194304 : fs_file_max))
 
     conntrack_max=$((memory_mb * 32))
-    conntrack_max=$((conntrack_max > 2097152 ? 2097152 : conntrack_max))
+    conntrack_max=$((conntrack_max > 4194304 ? 4194304 : conntrack_max))  # 10Gbps 调整上限
 
     buckets=$((conntrack_max / 8))
 
-    rmem_max=$((memory_mb * 1024 * 4))
-    rmem_max=$((rmem_max > 16777216 ? 16777216 : rmem_max))
+    rmem_max=$((memory_mb * 1024 * 8))  # 提高缓冲区
+    rmem_max=$((rmem_max > 67108864 ? 67108864 : rmem_max))  # 10Gbps 调整上限
 
-    wmem_max=$((memory_mb * 1024 * 4))
-    wmem_max=$((wmem_max > 16777216 ? 16777216 : wmem_max))
+    wmem_max=$((memory_mb * 1024 * 8))
+    wmem_max=$((wmem_max > 67108864 ? 67108864 : wmem_max))
 
     netdev_max_backlog=$((memory_mb * 128))
-    netdev_max_backlog=$((netdev_max_backlog > 262144 ? 262144 : netdev_max_backlog))
+    netdev_max_backlog=$((netdev_max_backlog > 262144 ? 262144 : netdev_max_backlog))  # 10Gbps 上限
 
     somaxconn=$((memory_mb * 16))
     somaxconn=$((somaxconn > 65535 ? 65535 : somaxconn))
 
-    tcp_max_tw_buckets=$((memory_mb * 4))
-    tcp_max_tw_buckets=$((tcp_max_tw_buckets > 1048576 ? 1048576 : tcp_max_tw_buckets))
+    tcp_max_tw_buckets=$((memory_mb * 8))  # 适当提高 TIME_WAIT 连接数
+    tcp_max_tw_buckets=$((tcp_max_tw_buckets > 2097152 ? 2097152 : tcp_max_tw_buckets))  # 10Gbps 上限
 
     # 配置 sysctl
     cat > /etc/sysctl.conf << EOF
