@@ -174,7 +174,8 @@ case "$option" in
         restore_config
         ;;
     0)
-        exit_script
+        echo "[信息] 退出脚本"
+        exit 0
         ;;
     *)
         echo "[错误] 请输入有效的选项！"
